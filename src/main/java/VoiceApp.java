@@ -27,6 +27,7 @@ public class VoiceApp {
     private static String enrollmentResponse;
     private static VoiceService voiceService;
     private static boolean authenticated = false;
+    private static boolean registered = false;
     static Map<String,String> data;
     private static void log(String message){
         System.out.println(message);
@@ -46,9 +47,18 @@ public class VoiceApp {
     }
     public static void main(String[] args) throws UnknownHostException {
         gson = new Gson();
+
         //initialise voiceit
         //VoiceIt voiceIt = new VoiceIt("676d89d1f5d742f8a42f37a1a37db942");
-        VoiceIt voiceIt = new VoiceIt("66f41f2df0564f2cbdfbdeaa668d773c");
+        //tnjoroge95
+        //VoiceIt voiceIt = new VoiceIt("66f41f2df0564f2cbdfbdeaa668d773c");
+        //roina
+        //VoiceIt voiceIt = new VoiceIt("982a3eb8edaf43928f691d3e1fe8228f");
+        //VoiceIt voiceIt = new VoiceIt("6400de8d11b948b9afb42b8edeb008ba");
+        //liz
+        //VoiceIt voiceIt = new VoiceIt("3a2b4d10e1984c2a8b36a32a59f25504");
+        //roina paid
+        VoiceIt voiceIt = new VoiceIt("4caa5d04b8f943b79442b3c42e7e27a3");
         //phrase
         String phraseUrl = "https://voiceit.tech/voicePrint.wav";
 
@@ -59,7 +69,8 @@ public class VoiceApp {
         log(String.format("SDK Server: %s:%d", host.getHostAddress(), RPC_PORT));
         log(String.format("HTTP Server: %s:%d", host.getHostAddress(), HTTP_PORT));
         log("\n");
-        String baseUrl = "http://e0a9bc05.ngrok.io";
+
+        String baseUrl = "http://8826e9a2.ngrok.io";
         setUpAfricasTalking();
         port(HTTP_PORT);
 
@@ -105,6 +116,8 @@ public class VoiceApp {
                     }
 
                 }else if(states.get(sessionId).equals("auth")){
+                    System.out.println(recordingUrl);
+
 
                     //if user is authenticating
                     String authResponse = voiceIt.authenticationByWavURL(String.valueOf(callerNo),"abcde",recordingUrl);
@@ -114,12 +127,21 @@ public class VoiceApp {
                     authResponseCode = model.ResponseCode;
                     System.out.println(authResponseCode);
                     System.out.println(authResult);
-                    if(authResponseCode.equals("SUC")){
+                    String resultData;
+                    resultData = authResult.substring(authResult.length() - 5, authResult.length() - 1);
+                    double confidenceLevel = Double.parseDouble(resultData);
+                    System.out.print("Confidence level is "+confidenceLevel);
 
+                    if(authResponseCode.equals("SUC")||authResponseCode.equals("ATF")){
                         //change the status of the authentication to true
                         //redirect to ussd
-                        authenticated=true;
-                        states.put(sessionId,"authSuccess");
+                        if(confidenceLevel>=70.0){
+                            authenticated=true;
+                            states.put(sessionId,"authSuccess");
+                        }else {
+                            states.put(sessionId,"autherror");
+                        }
+
                     }
                     else {
                         states.put(sessionId,"autherror");
@@ -136,6 +158,7 @@ public class VoiceApp {
                 public void run() {
                     Gson enrollGson = new Gson();
                     try {
+
                         //check if user exists
                         String userExist = voiceIt.getUser(String.valueOf(callerNo),"abcde");
                         Gson userExistJson = new Gson();
@@ -155,12 +178,14 @@ public class VoiceApp {
                             //create user
                             voiceIt.createUser(String.valueOf(callerNo),"abcde");
                         }
-                    } catch (IOException e) {
+
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
             });
             thread.run();
+
 
             System.out.println(String.valueOf(Active));
             //check our state
@@ -170,7 +195,7 @@ public class VoiceApp {
             switch (state){
                 case "menu":
                     states.put(sessionId,"process");
-                    System.out.println(numberOfEnrollments[0]+"menu");
+                    System.out.println(numberOfEnrollments[0]+" menu");
                     if(numberOfEnrollments[0]>=3){
                         resp.say(new Say("Welcome dear user"))
                                 .getDigits(new GetDigits(new Say("Press 2 to authenticate your voice "), 1, "#", null));
@@ -195,7 +220,8 @@ public class VoiceApp {
                             System.out.println(numberOfEnrollments[0]);
                             //check if user has registered
                             if(numberOfEnrollments[0]>=3) {
-                                resp.record(new Record(new Say("Please say the phrase you registered with and press 0 when done recording"), "0", 10, 5, true, true, null));
+                                resp.say(new Say("Please repeat this phrase that you registered with and press 0 when done recording"));
+                                resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
                             }else {
                                 resp.say(new Say("You have not registered yet"))
                                         .redirect(new Redirect(new URL(baseUrl+"/voice")));
@@ -222,6 +248,7 @@ public class VoiceApp {
                 case "success":
                     states.put(sessionId,"menu");
                     resp.say(new Say("You have successfully registered your voice"));
+                    registered = true;
                     break;
                 //error handling for the enrollment
                 case "error":
@@ -264,22 +291,33 @@ public class VoiceApp {
             System.out.println(text);
             if(text==null)
                 text = "";
+            String amount = null;
+            String keyPressed = null;
             String[] datar = text.split("\\*");
-            for (String values:datar){
-                System.out.print(values+"yho");
-            }
-            if(text=="3*"){
+            for (int i=0;i<datar.length;i++){
+                if(i==1) {
+                    amount = datar[1];
+                    keyPressed = datar[0];
+                }
 
             }
+            if(amount!=null){
+                if(keyPressed.equals("2")){
+                    text = "Deposit";
+                }else if(keyPressed.equals("3")){
+                    text = "Withdraw";
+                }
+            }
+
             switch (text){
                 case "":
-                    String data = "CON Hello "+callerNumber+ "\n"+
+                    String data = "CON WELCOME TO BANKING THE UNBANKED "+ "\n"+
                             "1. Register \n"+
                             "2. Deposit \n"+
                             "3. Withdraw";
                     return data;
                 case "1":
-                    if(authenticated){
+                    if(registered){
                         return "END Your are already Registered";
                     }else {
                         voiceService.call(callerNumber, "+254711082432", new Callback<CallResponse>() {
@@ -333,33 +371,35 @@ public class VoiceApp {
                             }
                         });
                     }
-                    /*
-                    final String[] payStatus = new String[1];
-                    Consumer consumer = new Consumer("Telvin",callerNumber,"KES 100",Consumer.REASON_BUSINESS);
+                    break;
+                case "Deposit":
+                    String depositAmount = amount;
+                    System.out.println("Depositing "+amount);
+                    CheckoutResponse depositResponse = paymentService.mobileCheckout("LoanApp", callerNumber, "KES " + depositAmount,null);
+                    if(depositResponse.status.equals("Queued")) {
+                        return "END WAIT FOR A MOMENT";
+                    }
+                    else {
+                        return "END SOMETHING HAS GONE WRONG";
+                    }
+                case "Withdraw":
+                    String withdrawAmount = amount;
+                    System.out.println("Withdrawing.... "+amount);
+                    Consumer consumer = new Consumer("Telvin",callerNumber,"KES "+withdrawAmount,Consumer.REASON_BUSINESS);
                     List<Consumer> list = new ArrayList<>();
                     list.add(consumer);
-                    paymentService.mobileB2C("Test", list, new Callback<B2CResponse>() {
-                        @Override
-                        public void onSuccess(B2CResponse b2CResponse) {
-                            System.out.println(b2CResponse.entries.get(0));
-                            payStatus[0] = "END SUCCESSFUL";
-                        }
-
-                        @Override
-                        public void onFailure(Throwable throwable) {
-                            payStatus[0] = "END"+throwable;
-                        }
-                    });
-
-                    return payStatus[0];
-                    */
-                    break;
+                    B2CResponse withdrawResponse = paymentService.mobileB2C("LoanApp", list);
+                    if(withdrawResponse.entries.get(0).errorMessage==null){
+                        return "END WAIT A MOMENT FOR MPESA MESSAGE";
+                    }else {
+                        return "END SOMETHING HAS GONE WRONG";
+                    }
 
                     default:
                         String option = "CON You have entered the wrong option";
                         return option;
             }
-            return "END OK";
+            return "END Please wait for our call";
         });
 
 
@@ -374,6 +414,9 @@ public class VoiceApp {
     }
     static class AfricasTalkingVoiceModel{
         private String callerNo;
+    }
+    static class VoiceIt2Model{
+        private String count,responseCode,groupId;
     }
 
 }
