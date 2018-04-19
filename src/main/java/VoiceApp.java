@@ -26,8 +26,10 @@ public class VoiceApp {
     private static Gson gson;
     private static String enrollmentResponse;
     private static VoiceService voiceService;
+    private static double confidenceLevel;
     private static boolean authenticated = false;
     private static boolean registered = false;
+    private static int frequencyDeposit=0;
     static Map<String,String> data;
     private static void log(String message){
         System.out.println(message);
@@ -70,7 +72,7 @@ public class VoiceApp {
         log(String.format("HTTP Server: %s:%d", host.getHostAddress(), HTTP_PORT));
         log("\n");
 
-        String baseUrl = "http://8826e9a2.ngrok.io";
+        String baseUrl = "http://4d32d5bc.ngrok.io";
         setUpAfricasTalking();
         port(HTTP_PORT);
 
@@ -117,8 +119,6 @@ public class VoiceApp {
 
                 }else if(states.get(sessionId).equals("auth")){
                     System.out.println(recordingUrl);
-
-
                     //if user is authenticating
                     String authResponse = voiceIt.authenticationByWavURL(String.valueOf(callerNo),"abcde",recordingUrl);
                     Gson gson = new Gson();
@@ -129,13 +129,12 @@ public class VoiceApp {
                     System.out.println(authResult);
                     String resultData;
                     resultData = authResult.substring(authResult.length() - 5, authResult.length() - 1);
-                    double confidenceLevel = Double.parseDouble(resultData);
-                    System.out.print("Confidence level is "+confidenceLevel);
-
                     if(authResponseCode.equals("SUC")||authResponseCode.equals("ATF")){
+                        confidenceLevel = Double.parseDouble(resultData);
+                        System.out.print("Confidence level is "+confidenceLevel);
                         //change the status of the authentication to true
                         //redirect to ussd
-                        if(confidenceLevel>=70.0){
+                        if(confidenceLevel>=60.0){
                             authenticated=true;
                             states.put(sessionId,"authSuccess");
                         }else {
@@ -150,7 +149,6 @@ public class VoiceApp {
                 }
 
             }
-
             int[] numberOfEnrollments = {0};
             //says our menu
             Thread thread = new Thread(new Runnable() {
@@ -186,7 +184,6 @@ public class VoiceApp {
             });
             thread.run();
 
-
             System.out.println(String.valueOf(Active));
             //check our state
             String state = Active? states.getOrDefault(sessionId,"menu"):"afs";
@@ -209,46 +206,77 @@ public class VoiceApp {
                     switch (dtmf){
                         //register with voice
                         case "1":
-                            states.put(sessionId,"enroll2");
-                            //play song from the song url
-                            resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
-                            resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                            if(numberOfEnrollments[0]>3){
+                                resp.say(new Say("You have pressed the wrong key"))
+                                        .redirect(new Redirect(new URL(baseUrl+"/voice")));
+                            }else {
+                                states.put(sessionId, "enroll2");
+                                //play song from the song url
+                                resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
+                                resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                            }
                             break;
                         //authenticate
                         case "2":
-                            states.put(sessionId,"auth");
+
+
                             System.out.println(numberOfEnrollments[0]);
                             //check if user has registered
                             if(numberOfEnrollments[0]>=3) {
+                                states.put(sessionId,"auth");
                                 resp.say(new Say("Please repeat this phrase that you registered with and press 0 when done recording"));
                                 resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
                             }else {
-                                resp.say(new Say("You have not registered yet"))
+                                resp.say(new Say("You have pressed the wrong key"))
                                         .redirect(new Redirect(new URL(baseUrl+"/voice")));
                             }
 
                             break;
+                            default:
+                                resp.say(new Say("You have pressed the wrong key")).redirect(new Redirect(new URL(baseUrl+"/voice")));
                     }
                     break;
                 //second enrollment
                 case "enroll2":
+                    if(numberOfEnrollments[0]>3){
+                        resp.say(new Say("You have pressed the wrong key"))
+                                .redirect(new Redirect(new URL(baseUrl+"/voice")));
+                    }else {
+                        states.put(sessionId, "enroll3");
+                        //play song from the song url
+                        resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
+                        resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                    }
+                    /*
                     states.put(sessionId,"enroll3");
                     //play song from the song url
                     resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
                     resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                    */
                     break;
                 //third enrollment
                 case "enroll3":
+                    if(numberOfEnrollments[0]>3){
+                        resp.say(new Say("You have pressed the wrong key"))
+                                .redirect(new Redirect(new URL(baseUrl+"/voice")));
+                    }else {
+                        states.put(sessionId, "success");
+                        //play song from the song url
+                        resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
+                        resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                    }
+                    /*
                     states.put(sessionId,"success");
                     //play song from the song url
                     resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
                     resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
+                    */
                     break;
                 //successful enrollments
                 case "success":
                     states.put(sessionId,"menu");
-                    resp.say(new Say("You have successfully registered your voice"));
                     registered = true;
+                    resp.say(new Say("You have successfully registered your voice"));
                     break;
                 //error handling for the enrollment
                 case "error":
@@ -291,7 +319,7 @@ public class VoiceApp {
             System.out.println(text);
             if(text==null)
                 text = "";
-            String amount = null;
+            String amount=null;
             String keyPressed = null;
             String[] datar = text.split("\\*");
             for (int i=0;i<datar.length;i++){
@@ -334,10 +362,15 @@ public class VoiceApp {
                     }
                     break;
                 case "2":
-                    System.out.print("authentication state "+authenticated);
+
+                    System.out.println("Frequency is "+frequencyDeposit);
+                    System.out.println("authentication state "+authenticated);
                     if(authenticated) {
-                        authenticated = false;
-                        return "CON Deposit money";
+                        if(frequencyDeposit>=3) {
+                            frequencyDeposit=0;
+                            authenticated = false;
+                        }
+                        return "CON Enter amount to deposit";
                     }
                     else {
                         voiceService.call(callerNumber, "+254711082432", new Callback<CallResponse>() {
@@ -355,9 +388,10 @@ public class VoiceApp {
                     //c2b
                     break;
                 case "3":
+
                     if(authenticated) {
-                        authenticated = false;
-                        return "CON Enter the amount you want to withdraw";
+                        authenticated=false;
+                        return "CON Enter the amount to withdraw";
                     }else {
                         voiceService.call(callerNumber, "+254711082432", new Callback<CallResponse>() {
                             @Override
@@ -373,7 +407,11 @@ public class VoiceApp {
                     }
                     break;
                 case "Deposit":
-                    String depositAmount = amount;
+                    frequencyDeposit++;
+                    int depositAmount = Integer.parseInt(amount);
+                    if(depositAmount>10||depositAmount<10){
+                        return "END Amount entered is either too low or too high.You can only deposit 10 shillings";
+                    }
                     System.out.println("Depositing "+amount);
                     CheckoutResponse depositResponse = paymentService.mobileCheckout("LoanApp", callerNumber, "KES " + depositAmount,null);
                     if(depositResponse.status.equals("Queued")) {
@@ -383,12 +421,16 @@ public class VoiceApp {
                         return "END SOMETHING HAS GONE WRONG";
                     }
                 case "Withdraw":
-                    String withdrawAmount = amount;
+                    int withdrawAmount = Integer.parseInt(amount);
+                    if(withdrawAmount>10||withdrawAmount<10){
+                        return "END Amount entered is either too low or too high.You can only withdraw 10 shillings";
+                    }
                     System.out.println("Withdrawing.... "+amount);
-                    Consumer consumer = new Consumer("Telvin",callerNumber,"KES "+withdrawAmount,Consumer.REASON_BUSINESS);
+                    Consumer consumer = new Consumer(callerNumber,callerNumber,"KES "+withdrawAmount,Consumer.REASON_BUSINESS);
                     List<Consumer> list = new ArrayList<>();
                     list.add(consumer);
                     B2CResponse withdrawResponse = paymentService.mobileB2C("LoanApp", list);
+                    System.out.print(withdrawResponse.entries.get(0).status);
                     if(withdrawResponse.entries.get(0).errorMessage==null){
                         return "END WAIT A MOMENT FOR MPESA MESSAGE";
                     }else {
@@ -399,7 +441,7 @@ public class VoiceApp {
                         String option = "CON You have entered the wrong option";
                         return option;
             }
-            return "END Please wait for our call";
+            return "END Please wait for a call from +254711082432";
         });
 
 
@@ -412,11 +454,7 @@ public class VoiceApp {
     static class  VoiceItEnrollModel{
         private String[] Result;
     }
-    static class AfricasTalkingVoiceModel{
-        private String callerNo;
-    }
-    static class VoiceIt2Model{
-        private String count,responseCode,groupId;
-    }
+
+
 
 }
