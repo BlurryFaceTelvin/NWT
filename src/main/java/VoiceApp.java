@@ -12,9 +12,6 @@ import java.net.URLDecoder;
 import java.net.UnknownHostException;
 
 import java.util.*;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-
 import static spark.Spark.port;
 import static spark.Spark.post;
 
@@ -34,8 +31,8 @@ public class VoiceApp {
     private static void log(String message){
         System.out.println(message);
     }
+    //set up for africastalking
     private static void setUpAfricasTalking(){
-        //AfricasTalking.initialize("sandbox","3951b35df84cb44c81ffeedad845413e7b63bc44068ac07f5d28137f3d049d2b");
         AfricasTalking.initialize("loans","956d6d203f8c06a94026bb57bcad45152d06585978b1d0b3b64bd71823bc281f");
         paymentService = AfricasTalking.getService(AfricasTalking.SERVICE_PAYMENT);
         voiceService = AfricasTalking.getService(AfricasTalking.SERVICE_VOICE);
@@ -49,36 +46,21 @@ public class VoiceApp {
     }
     public static void main(String[] args) throws UnknownHostException {
         gson = new Gson();
-
-        //initialise voiceit
-        //VoiceIt voiceIt = new VoiceIt("676d89d1f5d742f8a42f37a1a37db942");
-        //tnjoroge95
-        //VoiceIt voiceIt = new VoiceIt("66f41f2df0564f2cbdfbdeaa668d773c");
-        //roina
-        //VoiceIt voiceIt = new VoiceIt("982a3eb8edaf43928f691d3e1fe8228f");
-        //VoiceIt voiceIt = new VoiceIt("6400de8d11b948b9afb42b8edeb008ba");
-        //liz
-        //VoiceIt voiceIt = new VoiceIt("3a2b4d10e1984c2a8b36a32a59f25504");
-        //roina paid
+        //initialise voice it
         VoiceIt voiceIt = new VoiceIt("4caa5d04b8f943b79442b3c42e7e27a3");
-        //phrase
+        //phrase that user will listen to and repeat
         String phraseUrl = "https://voiceit.tech/voicePrint.wav";
-
-        //initialise africastalking
         HashMap<String,String> states = new HashMap<>();
         Inet4Address host = (Inet4Address)Inet4Address.getLocalHost();
         log("\n");
         log(String.format("SDK Server: %s:%d", host.getHostAddress(), RPC_PORT));
         log(String.format("HTTP Server: %s:%d", host.getHostAddress(), HTTP_PORT));
         log("\n");
-
-        String baseUrl = "http://4d32d5bc.ngrok.io";
+        String baseUrl = "http://b5b88b49.ngrok.io";
+        //initialise africastalking
         setUpAfricasTalking();
         port(HTTP_PORT);
 
-        post("/pay",((request, response) -> {
-            return "OK";
-        }));
         post("/voice",((request, response) -> {
             //create user using their number
             //Parse post data
@@ -247,12 +229,6 @@ public class VoiceApp {
                         resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
                         resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
                     }
-                    /*
-                    states.put(sessionId,"enroll3");
-                    //play song from the song url
-                    resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
-                    resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
-                    */
                     break;
                 //third enrollment
                 case "enroll3":
@@ -265,12 +241,6 @@ public class VoiceApp {
                         resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
                         resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
                     }
-                    /*
-                    states.put(sessionId,"success");
-                    //play song from the song url
-                    resp.say(new Say("Repeat this phrase after the beep and press 0 when done recording"));
-                    resp.record(new Record(new Play(new URL(phraseUrl)), "0", 10, 5, true, true, null));
-                    */
                     break;
                 //successful enrollments
                 case "success":
